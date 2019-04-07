@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "fuse_lowlevel.h"
+#include "fuse_kernel.h"
 #include "fuse_i.h"
 
 #include <stdio.h>
@@ -30,8 +31,29 @@ int fuse_session_loop(struct fuse_session *se)
 			continue;
 		if (res <= 0)
 			break;
+               
+		int count = 0;
+                struct fuse_in_header *in_temp = NULL;
+                in_temp = fbuf.mem;
+                
+                int i = 0;
+                void *param2 = fbuf.mem;
+                struct fuse_in_header *param3 = (struct fuse_in_header *)param2;
 
-		fuse_session_process_buf_int(se, &fbuf, NULL);
+                while(count < res) {
+                        fuse_session_process_buf_int(se, &fbuf, NULL);
+                        param2 = param2 + param3->len;
+                        count = count + param3->len;
+                        param3 = (struct fuse_in_header *)param2;
+                        fbuf.mem = param2;                   
+                        i = i + 1;
+                }               
+
+                printf("Total requests: %d\n", i);
+                printf("Count: %d\n", count);
+
+                fbuf.mem = in_temp;
+
 	}
 
 	free(fbuf.mem);
