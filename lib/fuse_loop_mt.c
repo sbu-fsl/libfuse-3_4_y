@@ -118,7 +118,11 @@ static void *fuse_do_work(void *data)
 {
 	struct fuse_worker *w = (struct fuse_worker *) data;
 	struct fuse_mt *mt = w->mt;
-
+	int count = 0;
+	struct fuse_in_header *in_temp = NULL;
+	int i = 0;
+	void *param2 = NULL;
+	struct fuse_in_header *param3 = NULL;
 	while (!fuse_session_exited(mt->se)) {
 		int isforget = 0;
 		int res;
@@ -160,7 +164,28 @@ static void *fuse_do_work(void *data)
 			fuse_loop_start_thread(mt);
 		pthread_mutex_unlock(&mt->lock);
 
-		fuse_session_process_buf_int(mt->se, &w->fbuf, w->ch);
+		//fuse_session_process_buf_int(mt->se, &w->fbuf, w->ch);
+	
+		count = 0;
+		in_temp = w->fbuf.mem;
+		i = 0;
+		param2 = w->fbuf.mem;
+		param3 = (struct fuse_in_header *)param2;
+
+		while(count < res) {
+			
+			fuse_session_process_buf_int(mt->se, &w->fbuf, w->ch);
+			param2 = param2 + param3->len;
+			count = count + param3->len;
+			param3 = (struct fuse_in_header *)param2;
+			w->fbuf.mem = param2;			
+			i = i + 1;
+		}		
+
+		printf("Total requests: %d\n", i);
+		printf("Total size of all requests in buffer: %d\n", count);
+
+		w->fbuf.mem = in_temp;
 
 		pthread_mutex_lock(&mt->lock);
 		if (!isforget)
