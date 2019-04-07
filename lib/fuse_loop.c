@@ -12,7 +12,6 @@
 #include "fuse_lowlevel.h"
 #include "fuse_kernel.h"
 #include "fuse_i.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -20,6 +19,12 @@
 int fuse_session_loop(struct fuse_session *se)
 {
 	int res = 0;
+	int count = 0;
+	struct fuse_in_header *in_temp = NULL;
+	int i = 0;
+	void *param2 = NULL;
+	struct fuse_in_header *param3 = NULL;
+
 	struct fuse_buf fbuf = {
 		.mem = NULL,
 	};
@@ -32,27 +37,25 @@ int fuse_session_loop(struct fuse_session *se)
 		if (res <= 0)
 			break;
                
-		int count = 0;
-                struct fuse_in_header *in_temp = NULL;
-                in_temp = fbuf.mem;
-                
-                int i = 0;
-                void *param2 = fbuf.mem;
-                struct fuse_in_header *param3 = (struct fuse_in_header *)param2;
+		count = 0;
+		in_temp = fbuf.mem;        
+		i = 0;
+		param2 = fbuf.mem;
+		param3 = (struct fuse_in_header *)param2;
 
-                while(count < res) {
-                        fuse_session_process_buf_int(se, &fbuf, NULL);
-                        param2 = param2 + param3->len;
-                        count = count + param3->len;
-                        param3 = (struct fuse_in_header *)param2;
-                        fbuf.mem = param2;                   
-                        i = i + 1;
-                }               
+		while(count < res) {
+			fuse_session_process_buf_int(se, &fbuf, NULL);
+			param2 = param2 + param3->len;
+			count = count + param3->len;
+			param3 = (struct fuse_in_header *)param2;
+			fbuf.mem = param2;                   
+			i = i + 1;
+		}               
 
-                printf("Total requests: %d\n", i);
-                printf("Count: %d\n", count);
+		printf("Total requests: %d\n", i);
+		printf("Total size of all requests in buffer : %d\n", count);
 
-                fbuf.mem = in_temp;
+		fbuf.mem = in_temp;
 
 	}
 
