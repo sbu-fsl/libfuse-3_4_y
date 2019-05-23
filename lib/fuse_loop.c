@@ -52,11 +52,11 @@ int fuse_session_loop(struct fuse_session *se)
 			i = i + 1;
 		}               
 
-		printf("Total requests: %d\n", i);
-		printf("Total size of all requests in buffer : %d\n", count);
+		//printf("Total requests: %d\n", i);
+
+		//printf("Total size of all requests in buffer : %d\n", count);
 
 		fbuf.mem = in_temp;
-
 	}
 
 	free(fbuf.mem);

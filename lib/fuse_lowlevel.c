@@ -1307,6 +1307,32 @@ static void do_read(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
 		fuse_reply_err(req, ENOSYS);
 }
 
+static void do_write2(fuse_req_t req, fuse_ino_t nodeid, const void *inarg) {
+	
+	struct fuse_write_in *arg = (struct fuse_write_in *) inarg;
+	struct fuse_file_info fi;
+	char *param;
+
+	memset(&fi, 0, sizeof(fi));
+	fi.fh = arg->fh;
+	fi.writepage = (arg->write_flags & 1) != 0;
+	
+	if (req->se->conn.proto_minor < 9) {
+		param = ((char *) arg) + FUSE_COMPAT_WRITE_IN_SIZE;
+	} else {
+			fi.lock_owner = arg->lock_owner;
+			fi.flags = arg->flags;
+			param = PARAM(arg);
+	}
+	
+	if (req->se->op.write) {
+			req->se->op.write2(req, nodeid, param, arg->size,
+										arg->offset, &fi, arg->rand);
+	}
+	else
+			fuse_reply_err(req, ENOSYS);
+}
+
 static void do_write(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
 {
 	struct fuse_write_in *arg = (struct fuse_write_in *) inarg;
@@ -2420,6 +2446,7 @@ static struct {
 	[FUSE_RENAME2]     = { do_rename2,      "RENAME2"    },
 	[FUSE_COPY_FILE_RANGE] = { do_copy_file_range, "COPY_FILE_RANGE" },
 	[CUSE_INIT]	   = { cuse_lowlevel_init, "CUSE_INIT"   },
+	[FUSE_OPT_RAND_WRITE]   = {do_write2, "RANDOM_WRITE"},
 };
 
 #define FUSE_MAXOP (sizeof(fuse_ll_ops) / sizeof(fuse_ll_ops[0]))
@@ -2538,8 +2565,8 @@ void fuse_session_process_buf_int(struct fuse_session *se,
 		goto reply_err;
 
 	err = ENOSYS;
-	if (in->opcode >= FUSE_MAXOP || !fuse_ll_ops[in->opcode].func)
-		goto reply_err;
+	/*if (in->opcode >= FUSE_MAXOP || !fuse_ll_ops[in->opcode].func)
+		goto reply_err;*/
 	if (in->opcode != FUSE_INTERRUPT) {
 		struct fuse_req *intr;
 		pthread_mutex_lock(&se->lock);
@@ -2577,6 +2604,8 @@ void fuse_session_process_buf_int(struct fuse_session *se,
 		do_write_buf(req, in->nodeid, inarg, buf);
 	else if (in->opcode == FUSE_NOTIFY_REPLY)
 		do_notify_reply(req, in->nodeid, inarg, buf);
+	else if (in->opcode == FUSE_OPT_RAND_WRITE)
+		do_write2(req, in->nodeid, inarg);
 	else
 		fuse_ll_ops[in->opcode].func(req, in->nodeid, inarg);
 
@@ -2681,6 +2710,7 @@ int fuse_session_receive_buf_int(struct fuse_session *se, struct fuse_buf *buf,
 		if (llp->size < bufsize)
 			goto fallback;
 	}
+
 
 	res = splice(ch ? ch->fd : se->fd,
 		     NULL, llp->pipe[1], NULL, bufsize, 0);

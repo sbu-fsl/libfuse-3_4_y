@@ -567,6 +567,9 @@ struct fuse_lowlevel_ops {
 	void (*write) (fuse_req_t req, fuse_ino_t ino, const char *buf,
 		       size_t size, off_t off, struct fuse_file_info *fi);
 
+	
+	void (*write2) (fuse_req_t req, fuse_ino_t ino, const char *buf,
+				size_t size, off_t off, struct fuse_file_info *fi, uint64_t rand[]);
 	/**
 	 * Flush method
 	 *
