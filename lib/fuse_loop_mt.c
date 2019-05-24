@@ -174,7 +174,7 @@ static void *fuse_do_work(void *data)
 
 		while(count < res) {
 			
-			fuse_session_process_buf_int(mt->se, &w->fbuf, w->ch);
+			fuse_session_process_buf_int(mt->se, &w->fbuf, w->ch, 0, 0, 0);
 			param2 = param2 + param3->len;
 			count = count + param3->len;
 			param3 = (struct fuse_in_header *)param2;

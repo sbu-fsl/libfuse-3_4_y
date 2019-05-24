@@ -392,6 +392,7 @@ enum fuse_opcode {
 	FUSE_RENAME2		= 45,
 	FUSE_LSEEK		= 46,
 	FUSE_COPY_FILE_RANGE	= 47,
+	FUSE_OPT_RAND_WRITE     = 48,
 
 	/* CUSE specific operations */
 	CUSE_INIT		= 4096,
@@ -551,6 +552,10 @@ struct fuse_write_in {
 	uint64_t	lock_owner;
 	uint32_t	flags;
 	uint32_t	padding;
+	
+	// Random Write batching.
+	// Store offsets.
+	uint64_t        rand[32];
 };
 
 struct fuse_write_out {
@@ -719,6 +724,7 @@ struct fuse_out_header {
 	uint32_t	len;
 	int32_t		error;
 	uint64_t	unique;
+	uint64_t	bw_count;
 };
 
 struct fuse_dirent {

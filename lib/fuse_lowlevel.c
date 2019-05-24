@@ -205,7 +205,7 @@ int fuse_send_reply_iov_nofree(fuse_req_t req, int error, struct iovec *iov,
 			       int count)
 {
 	struct fuse_out_header out;
-
+	
 	if (error <= -1000 || error > 0) {
 		fprintf(stderr, "fuse: bad error value: %i\n",	error);
 		error = -ERANGE;
@@ -213,6 +213,7 @@ int fuse_send_reply_iov_nofree(fuse_req_t req, int error, struct iovec *iov,
 
 	out.unique = req->unique;
 	out.error = error;
+	out.bw_count = 1;
 
 	iov[0].iov_base = &out;
 	iov[0].iov_len = sizeof(struct fuse_out_header);
@@ -466,6 +467,38 @@ int fuse_reply_write(fuse_req_t req, size_t count)
 
 	return send_reply_ok(req, &arg, sizeof(arg));
 }
+
+void fuse_reply_batched_write(fuse_req_t req, uint64_t req_count, size_t req_size)
+{
+	struct fuse_write_out arg;
+	struct iovec iov[2];
+	struct fuse_out_header out;
+	int i = 0;
+
+	memset(&arg, 0, sizeof(arg));
+	arg.size = req_size;
+
+	out.unique = req->unique;
+	out.error = 0;
+	out.bw_count = req_count;
+
+	iov[i].iov_base = &out;
+	iov[i].iov_len = sizeof(struct fuse_out_header);
+
+	i++;
+	if (sizeof(arg)) {
+		iov[i].iov_base = (void *) &arg;
+		iov[i].iov_len = sizeof(arg);
+		i++;
+	}
+	
+	//printf("batched req_count = %ju\n", out.bw_count);
+	//printf("batched iov[1] size = %ld\n", iov[1].iov_len);
+	//printf("batched i = %d\n",i);
+
+	(void)fuse_send_msg(req->se, req->ch, iov, i);
+}
+
 
 int fuse_reply_buf(fuse_req_t req, const char *buf, size_t size)
 {
@@ -829,6 +862,7 @@ int fuse_reply_data(fuse_req_t req, struct fuse_bufvec *bufv,
 
 	out.unique = req->unique;
 	out.error = 0;
+	out.bw_count =  1;
 
 	res = fuse_send_data_iov(req->se, req->ch, iov, 1, bufv, flags);
 	if (res <= 0) {
@@ -1324,7 +1358,6 @@ static void do_write(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
 		fi.flags = arg->flags;
 		param = PARAM(arg);
 	}
-
 	if (req->se->op.write)
 		req->se->op.write(req, nodeid, param, arg->size,
 				 arg->offset, &fi);
@@ -2450,11 +2483,12 @@ static int fuse_ll_copy_from_pipe(struct fuse_bufvec *dst,
 void fuse_session_process_buf(struct fuse_session *se,
 			      const struct fuse_buf *buf)
 {
-	fuse_session_process_buf_int(se, buf, NULL);
+	fuse_session_process_buf_int(se, buf, NULL ,0, 0, 0);
 }
 
 void fuse_session_process_buf_int(struct fuse_session *se,
-				  const struct fuse_buf *buf, struct fuse_chan *ch)
+				const struct fuse_buf *buf, struct fuse_chan *ch, int isLast,
+				unsigned int cur_batch_count, unsigned long batched_size)
 {
 	const size_t write_header_size = sizeof(struct fuse_in_header) +
 		sizeof(struct fuse_write_in);
@@ -2571,15 +2605,29 @@ void fuse_session_process_buf_int(struct fuse_session *se,
 
 		in = mbuf;
 	}
-
+	
 	inarg = (void *) &in[1];
-	if (in->opcode == FUSE_WRITE && se->op.write_buf)
+	if (in->opcode == FUSE_WRITE && se->op.write_buf) {
+		//printf("About to  call do_write_buf\n");
 		do_write_buf(req, in->nodeid, inarg, buf);
-	else if (in->opcode == FUSE_NOTIFY_REPLY)
+	}
+	else if (in->opcode == FUSE_NOTIFY_REPLY) {
+		//printf("About to  call do_notify_reply\n");
 		do_notify_reply(req, in->nodeid, inarg, buf);
-	else
+	} 
+	else {
+		//printf("About to call %s\n", fuse_ll_ops[in->opcode].name);	
 		fuse_ll_ops[in->opcode].func(req, in->nodeid, inarg);
-
+		
+		if(in->opcode == FUSE_WRITE){
+			if(isLast == 1 && batched_size > 0) {
+				//printf("Ack send for req number = %ju with req_count = %d, size = %lu\n", req->unique, cur_batch_count, batched_size);
+				fuse_reply_batched_write(req, (uint32_t) cur_batch_count, batched_size);
+			}
+			fuse_free_req(req);
+		}
+		//printf("Operation no:%d Completed\n", in->opcode);
+	}
 out_free:
 	free(mbuf);
 	return;

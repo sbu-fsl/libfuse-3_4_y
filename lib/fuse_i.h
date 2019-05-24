@@ -124,7 +124,7 @@ int fuse_start_thread(pthread_t *thread_id, void *(*func)(void *), void *arg);
 int fuse_session_receive_buf_int(struct fuse_session *se, struct fuse_buf *buf,
 				 struct fuse_chan *ch);
 void fuse_session_process_buf_int(struct fuse_session *se,
-				  const struct fuse_buf *buf, struct fuse_chan *ch);
+				  const struct fuse_buf *buf, struct fuse_chan *ch, int isLast,unsigned int cur_batch_count, unsigned long batched_size);
 
 struct fuse *fuse_new_31(struct fuse_args *args, const struct fuse_operations *op,
 		      size_t op_size, void *private_data);

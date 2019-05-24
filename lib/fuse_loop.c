@@ -21,7 +21,7 @@ int fuse_session_loop(struct fuse_session *se)
 	int res = 0;
 	int count = 0;
 	struct fuse_in_header *in_temp = NULL;
-	int i = 0;
+	unsigned int i = 0;
 	void *param2 = NULL;
 	struct fuse_in_header *param3 = NULL;
 
@@ -44,16 +44,20 @@ int fuse_session_loop(struct fuse_session *se)
 		param3 = (struct fuse_in_header *)param2;
 
 		while(count < res) {
-			fuse_session_process_buf_int(se, &fbuf, NULL);
+			if(count + param3->len >= res) {
+				fuse_session_process_buf_int(se, &fbuf, NULL, 1, i+1, res);
+			} else {
+				fuse_session_process_buf_int(se, &fbuf, NULL, 0, 0, 0);
+			}
 			param2 = param2 + param3->len;
-			count = count + param3->len;
+			count += param3->len;
 			param3 = (struct fuse_in_header *)param2;
 			fbuf.mem = param2;                   
 			i = i + 1;
-		}               
+		}
 
-		printf("Total requests: %d\n", i);
-		printf("Total size of all requests in buffer : %d\n", count);
+		//printf("Total requests: %d\n", i);
+		//printf("Total size of all requests in buffer : %d\n", count);
 
 		fbuf.mem = in_temp;
 

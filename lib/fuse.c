@@ -4500,7 +4500,7 @@ static int fuse_session_loop_remember(struct fuse *f)
 			if (res <= 0)
 				break;
 
-			fuse_session_process_buf_int(se, &fbuf, NULL);
+			fuse_session_process_buf_int(se, &fbuf, NULL, 0, 0, 0);
 		} else {
 			timeout = fuse_clean_cache(f);
 			curr_time(&now);
