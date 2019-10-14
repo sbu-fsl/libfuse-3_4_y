@@ -607,6 +607,7 @@ struct fuse_init_in {
 	uint32_t	minor;
 	uint32_t	max_readahead;
 	uint32_t	flags;
+	unsigned long dummy_addr;
 };
 
 #define FUSE_COMPAT_INIT_OUT_SIZE 8

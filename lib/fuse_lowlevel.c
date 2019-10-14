@@ -1840,6 +1840,10 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid, const void *inarg)
 	struct fuse_session *se = req->se;
 	size_t bufsize = se->bufsize;
 	size_t outargsize = sizeof(outarg);
+	
+	char *ptr = (char *) arg->dummy_addr;
+	printf("Buff Addr in libfuse: %p\n", ptr);
+	printf("Dummy Data mapped by kernel: %s\n", ptr);
 
 	(void) nodeid;
 	if (se->debug) {
