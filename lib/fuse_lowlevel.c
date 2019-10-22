@@ -2803,10 +2803,10 @@ restart:
 	return res;
 }
 
-#define KERNEL_BUF_PAGES 32
+#define KERNEL_BUF_PAGES 1024
 
 /* room needed in buffer to accommodate header */
-#define HEADER_SIZE 0x1000
+#define HEADER_SIZE 0x20000
 
 struct fuse_session *fuse_session_new(struct fuse_args *args,
 				      const struct fuse_lowlevel_ops *op,
